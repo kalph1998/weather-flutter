@@ -12,27 +12,28 @@ class WeatherScreen extends StatefulWidget {
 }
 
 class _WeatherScreenState extends State<WeatherScreen> {
-  Weather? _weather;
+  late Future<Weather> _weather;
+
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
-    getWeatherDetails();
+
+    _weather = getWeatherDetails();
   }
 
-  getWeatherDetails() async {
+  Future<Weather> getWeatherDetails() async {
     try {
       Position userPosition = await WeatherService().determinePosition();
-      Weather weather = await WeatherService()
+      print('called');
+      return await WeatherService()
           .getWeather(lat: userPosition.latitude, long: userPosition.longitude);
-      setState(() {
-        _weather = weather;
-      });
     } on Exception catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.toString())));
       }
+      rethrow;
     }
   }
 
@@ -55,43 +56,70 @@ class _WeatherScreenState extends State<WeatherScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[300],
-      body: SafeArea(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              //city name
-              Column(
-                children: [
-                  Icon(
-                    Icons.location_on,
-                    color: Colors.grey[600],
-                  ),
-                  const SizedBox(
-                    height: 10,
-                  ),
-                  Text(
-                    _weather?.cityName.toUpperCase() ?? 'City name',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
+      body: RefreshIndicator(
+        onRefresh: () async {
+          setState(() {
+            _weather = getWeatherDetails();
+          });
+        },
+        child: FutureBuilder(
+            future: _weather,
+            builder: (context, snapshot) {
+              if (snapshot.hasData &&
+                  snapshot.connectionState != ConnectionState.waiting) {
+                return Center(
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: SizedBox(
+                      height: MediaQuery.of(context).size.height,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          //city name
+                          Column(
+                            children: [
+                              Icon(
+                                Icons.location_on,
+                                color: Colors.grey[600],
+                              ),
+                              const SizedBox(
+                                height: 10,
+                              ),
+                              Text(
+                                snapshot.data!.cityName.toUpperCase(),
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          Lottie.asset(
+                            getWeatherAnimation(snapshot.data!.mainCondition),
+                          ),
+                          //temperature
+                          Text(
+                            '${snapshot.data!.temperature.round()}°C',
+                            style: TextStyle(
+                                color: Colors.grey[700], fontSize: 30),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ],
-              ),
-
-              Lottie.asset(
-                getWeatherAnimation(_weather?.mainCondition),
-              ),
-              //temperature
-              Text(
-                '${_weather?.temperature.round()}°C',
-                style: TextStyle(color: Colors.grey[700], fontSize: 30),
-              ),
-            ],
-          ),
-        ),
+                );
+              } else if (snapshot.hasError) {
+                return const Center(
+                  child: Text('something went wrong'),
+                );
+              }
+              return const Center(
+                child: CircularProgressIndicator(),
+              );
+            }),
       ),
     );
   }
