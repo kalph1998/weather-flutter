@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:intl/intl.dart';
 import 'package:lottie/lottie.dart';
 import 'package:weather/models/weather_model.dart';
 import 'package:weather/service/weather_service.dart';
@@ -12,6 +13,8 @@ class WeatherScreen extends StatefulWidget {
 }
 
 class _WeatherScreenState extends State<WeatherScreen> {
+  // int now = int.parse(DateFormat('HH').format(DateTime.now()));
+  int now = 19;
   late Future<Weather> _weather;
 
   @override
@@ -25,7 +28,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
   Future<Weather> getWeatherDetails() async {
     try {
       Position userPosition = await WeatherService().determinePosition();
-      print('called');
+
       return await WeatherService()
           .getWeather(lat: userPosition.latitude, long: userPosition.longitude);
     } on Exception catch (e) {
@@ -44,7 +47,12 @@ class _WeatherScreenState extends State<WeatherScreen> {
       case 'Clouds':
         return 'assets/animation/cloudy.json';
       case 'Clear':
-        return 'assets/animation/sunny.json';
+        if (now > 6 && now < 16) {
+          return 'assets/animation/sunny.json';
+        } else {
+          return 'assets/animation/night-clear.json';
+        }
+
       case 'Rain':
         return 'assets/animation/rain.json';
       default:
